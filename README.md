@@ -107,7 +107,7 @@ tkinterdnd2 ok
 
 <br>**logo設置**
 <br>①文件準備：Photoshop準備好256*256的png，google search：png to ico。upload上去，download `*.ico`下來.
-<br>②設置：剛剛SendTo裡面的shortcut→屬性（Alt+左鍵雙擊）→Chang Icon→選剛剛 `*.ico`
+<br>②設置：剛剛SendTo裡面的shortcut→屬性（Alt+左鍵雙擊）→Change Icon→選剛剛 `*.ico`
 
 ## 8、Checklist打開
 雙擊
