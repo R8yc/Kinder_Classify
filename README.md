@@ -2,6 +2,11 @@
 將散落在各個地方的文件，通過拖拽或者SendTo，傳送到預設類別和命名規則的置頂文件夾。
 <br>有文件清單檢查文件是否齊全、文件數量。
 <br>可撤回/重做，關閉窗口後記憶就無了。
+# 樣子
+嗱~~<br>
+<img width="316" height="578" alt="image" src="https://github.com/user-attachments/assets/633af486-f1b2-4d16-a5c3-f86d89c242e8" />
+<img width="500" height="738" alt="image" src="https://github.com/user-attachments/assets/83004506-f8bb-4ef0-bbad-5358fae530dc" />
+
 
 # 功能
 **衹支援windows系統**
