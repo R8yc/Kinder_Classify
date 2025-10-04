@@ -10,7 +10,7 @@
     "1) default_path_template（可选）：",
     "   - 给所有类别统一使用的目标落地路径模板。",
     "   - 可用占位：{YYYY} {MM} {YYYYMM}",
-    "   - 例：E:/ShangJin_Kindergarten/{YYYY}/{YYYYMM}/财税文件",
+    "   - 例：E:/RAY/{YYYY}/{YYYYMM}/财税文件",
     "",
     "2) default_month_prompt（可选，布尔）：",
     "   - true：分类时先询问月份（YYYYMM），回车默认当月；",
@@ -25,90 +25,90 @@
     "=============================================================="
   ],
 
-  "out_root": "E:/ShangJin_Kindergarten/Unclassified",
+  "out_root": "E:/RAY/Unclassified",
 
-  "default_path_template": "E:/ShangJin_Kindergarten/{YYYY}/{YYYYMM}/财税文件",
+  "default_path_template": "E:/RAY/{YYYY}/{YYYYMM}/我推天下第一",
   "default_month_prompt": true,
 
   "items": [
     {
-      "key": "【网银】回单",
-      "dest_subdir": "网银/回单",
-      "rename": "01. {YYYY}{MM}_银行回单{ext}",
+      "key": "【K&P】杂志图",
+      "dest_subdir": "K&P/杂志图",
+      "rename": "01. {YYYY}{MM}_KP杂志图{ext}",
       "present_rule": { "mode": "any" }
     },
     {
-      "key": "【网银】明细",
-      "dest_subdir": "网银/明细",
-      "rename": "02. {YYYY}{MM}_银行明细{ext}",
+      "key": "【K&P】生写",
+      "dest_subdir": "K&P/生写",
+      "rename": "02. {YYYY}{MM}_KP生写{ext}",
       "present_rule": { "mode": "any" }
     },
     {
-      "key": "【伙食】幼儿膳食收入表",
-      "dest_subdir": "优鲜/幼儿膳食收入表",
-      "rename": "03. {YYYY}{MM}_幼儿膳食收入表{ext}",
+      "key": "【Snowman】iwa",
+      "dest_subdir": "Snowman/iwa",
+      "rename": "03. {YYYY}{MM}_iwa{ext}",
       "present_rule": { "mode": "any" },
       "exts": [".pdf", ".xls", ".xlsx", ".csv"]
     },
     {
-      "key": "【伙食】教师膳食收入表",
-      "dest_subdir": "优鲜/教师膳食收入表",
-      "rename": "04. {YYYY}{MM}_教师膳食收入表{ext}",
+      "key": "【Snowman】date",
+      "dest_subdir": "Snowman/date",
+      "rename": "04. {YYYY}{MM}_date{ext}",
       "present_rule": { "mode": "any" },
       "exts": [".pdf", ".xls", ".xlsx", ".csv"]
     },
     {
-      "key": "【伙食】幼儿应退伙食表",
-      "dest_subdir": "优鲜/幼儿应退伙食表",
-      "rename": "05. {YYYY}{MM}_幼儿应退伙食表{ext}",
+      "key": "【Snowman】shoppi",
+      "dest_subdir": "Snowman/shoppi",
+      "rename": "05. {YYYY}{MM}_shoppi{ext}",
       "present_rule": { "mode": "any" },
       "exts": [".pdf", ".xls", ".xlsx", ".csv"]
     },
     {
-      "key": "【伙食】台账收支余",
-      "dest_subdir": "优鲜/台账收支余",
-      "rename": "06. {YYYY}{MM}_台账教师幼儿收支余公示表{ext}",
+      "key": "【Snowman】箱推",
+      "dest_subdir": "Snowman/箱推",
+      "rename": "06. {YYYY}{MM}_箱推{ext}",
       "present_rule": { "mode": "any" },
       "exts": [".pdf", ".xls", ".xlsx", ".csv"]
     },
     {
-      "key": "【税务】社保申报汇总表",
-      "dest_subdir": "税务/申报汇总表",
-      "rename": "07. {YYYY}{MM}_社保申报汇总表{ext}",
+      "key": "【向井康二】ICHIBAN",
+      "dest_subdir": "向井康二/ICHIBAN",
+      "rename": "07. {YYYY}{MM}_KOJI ICHIBAN{ext}",
       "present_rule": { "mode": "any" },
       "exts": [".pdf", ".xls", ".xlsx", ".csv"]
     },
     {
-      "key": "【税务】社保申报个人明细表",
-      "dest_subdir": "税务/社保申报个人明细表",
-      "rename": "08. {YYYY}{MM}_社保申报个人明细表{ext}",
+      "key": "【向井康二】KOJI WA",
+      "dest_subdir": "向井康二/KOJI WA",
+      "rename": "08. {YYYY}{MM}_KOJIWA{ext}",
       "present_rule": { "mode": "any" },
       "exts": [".pdf", ".xls", ".xlsx", ".csv"]
     },
     {
-      "key": "【税务】全量发票查询结果",
-      "dest_subdir": "税务/全量发票查询结果",
-      "rename": "09. {YYYY}{MM}_全量发票查询结果{ext}",
+      "key": "【向井康二】真的",
+      "dest_subdir": "向井康二/真的",
+      "rename": "09. {YYYY}{MM}_向井康二真的{ext}",
       "present_rule": { "mode": "any" },
       "exts": [".pdf", ".xls", ".xlsx", ".csv"]
     },
     {
-      "key": "【税务】发票",
-      "dest_subdir": "税务/发票",
-      "rename": "10. {YYYY}{MM}_发票_{orig}{ext}",
+      "key": "【向井康二】太帅",
+      "dest_subdir": "向井康二/太帅",
+      "rename": "10. {YYYY}{MM}_太帅_{orig}{ext}",
       "present_rule": { "mode": "any" }
     },
     {
-      "key": "【公积金】汇缴证明",
-      "dest_subdir": "公积金/汇缴证明",
-      "rename": "11. {YYYY}{MM}_公积金汇缴证明{ext}",
+      "key": "【佐久间大介】可爱",
+      "dest_subdir": "佐久间大介/可爱",
+      "rename": "11. {YYYY}{MM}_佐久间大介可爱{ext}",
       "present_rule": { "mode": "any" },
       "exts": [".pdf", ".xls", ".xlsx", ".csv"]
     },
     {
-      "key": "【工资表】",
-      "dest_subdir": "工资表",
-      "rename": "12. {YYYY}{MM}_工资表{ext}",
+      "key": "【阿部亮平】",
+      "dest_subdir": "阿部亮平",
+      "rename": "12. {YYYY}{MM}_阿部亮平{ext}",
       "present_rule": { "mode": "any" },
       "exts": [".pdf", ".xls", ".xlsx", ".csv"]
     }
