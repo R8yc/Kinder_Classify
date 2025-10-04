@@ -77,11 +77,25 @@ def move_with_conflict(src: Path, dst: Path) -> Path:
 
 def target_dir(cfg: dict, it: dict, y: int, m: int) -> Path:
     YYYY, MM, YYYYMM = fmt_ym(y, m)
+
+    # 1) 先确定使用哪个模板（item 覆盖全局）
     if it.get("path_template"):
-        return Path(it["path_template"].format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM))
-    if cfg.get("default_path_template"):
-        return Path(cfg["default_path_template"].format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM))
-    return Path(cfg["out_root"]) / f"{YYYYMM}_Unclassified"
+        tpl = it["path_template"]
+    elif cfg.get("default_path_template"):
+        tpl = cfg["default_path_template"]
+    else:
+        # 老规则兜底
+        return Path(cfg["out_root"]) / f"{YYYYMM}_Unclassified"
+
+    # 2) 支持 {dest_subdir} 占位符
+    dest_subdir = it.get("dest_subdir", "")
+    base = Path(tpl.format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM, dest_subdir=dest_subdir))
+
+    # 3) 若模板里没写 {dest_subdir}，但 item 提供了 dest_subdir，则自动追加
+    if dest_subdir and "{dest_subdir}" not in tpl:
+        base = base / dest_subdir
+    return base
+
 
 def expected_prefix(it: dict, y: int, m: int) -> str:
     YYYY, MM, _ = fmt_ym(y, m)
@@ -185,9 +199,9 @@ class App(TkinterDnD.Tk):
                 ttk.Button(left, text=it["key"], style="Left.TButton",
                            command=lambda _it=it: self.assign(_it)).pack(fill=tk.X, pady=1)
 
-        # 中栏：待分配文件 + 状态栏 + 按钮
+        # 中栏：待分类文件 + 状态栏 + 按钮
         mid = ttk.Frame(frm); mid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
-        ttk.Label(mid, text="待分配文件（可拖拽或“添加文件…”）").pack(anchor="w")
+        ttk.Label(mid, text="待分类文件（可拖拽或“添加文件…”）").pack(anchor="w")
 
         self.file_list = tk.Listbox(mid, selectmode=tk.EXTENDED, height=24)
         self.file_list.pack(fill=tk.BOTH, expand=True)
