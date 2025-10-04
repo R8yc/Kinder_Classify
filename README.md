@@ -76,7 +76,7 @@ tkinterdnd2 ok
   <br>②分類修改：<br>
 ```
 {
-  "key": "【向井康二】世一", "group": "雪雪"
+  "key": "【向井康二】世一"
   "exts": [".xls", ".xlsx", ".pdf"],
   "rename": "{YYYY}{MM}{DD}_世一證據_{orig}{ext}",
   "path_template": "E:/Finance/{YYYY}/{YYYYMM}/向井康二",
