@@ -66,7 +66,7 @@ tkinterdnd2 ok
 | 有 `path_template` （在分類底下）| 使用此分類自己的目錄模板。                           |
 | 沒有 `path_template` 但有 `dest_subdir`  | 使用全域 `default_path_template`，並在最後拼上子目錄。 |
 | 沒有 `path_template` 也沒有 `dest_subdir` | 僅用 `default_path_template` 生成。          |
-| 想修改大分類和分類名稱                              | 改 `key`。可以改`"group":大分類名`也可刪掉`"group":大分類名`。我設定了大分類用【】括住，當冇`"group":大分類名`就自動認為【大分類】|
+| 想修改大分類和分類名稱                              | 改 `key`。我設定了大分類用`【大分類】`括住。|
 
   <br>②分類修改：<br>
 ```
@@ -119,6 +119,6 @@ tkinterdnd2 ok
 **統計：** 遍歷每類目標目錄，按照`前綴+擴展名`過濾計數，結合`present_rule`判定狀態✅/⬜
 <br>**Treeview:** 
 <br>-兩欄：左 文件類別（`#0`）、右 狀態[數量]（`values=("✅[5]",)` 或 `("⬜[0]",)`）。
-<br>-群組：優先讀 分類item[`"group":`]`；無則從 `key` 中 `【】` 解析；每組插一個「—— 組名 ——」父節點。
+<br>-群組(大分類)：`【】` 解析；每組插一個「—— 組名 ——」父節點。
 <br>-互動：雙擊非組節點 → `os.startfile(target_dir(item))` 打開目錄。
 
