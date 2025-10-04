@@ -64,7 +64,9 @@ tkinterdnd2 ok
 | 沒有 `path_template` 但有 `dest_subdir`  | 使用全域 `default_path_template`，並在最後拼上子目錄。 |
 | 沒有 `path_template` 也沒有 `dest_subdir` | 僅用 `default_path_template` 生成。          |
 | 想修改分類名稱                              | 改 `key`。                                |
-<br>②分類修改：<br>
+
+  <br>②分類修改：<br>
+```
 {
   "key": "【向井康二】世一",
   "exts": [".xls", ".xlsx", ".pdf"],
@@ -72,8 +74,8 @@ tkinterdnd2 ok
   "path_template": "E:/Finance/{YYYY}/{YYYYMM}/向井康二",
   "present_rule": { "mode": "any" }
 }
-
 ```
+
 | 行（鍵名） | 範例內容 | 功能與說明 |
 |-------------|-----------|-------------|
 | `"key"` | `"【向井康二】世一"` | 類別名稱，顯示於主程式按鈕與右側清單中。 |
