@@ -96,7 +96,7 @@ tkinterdnd2 ok
 
 ## 7、滑鼠右鍵SendTo
 **SendTo-快捷方式(shortcut)設置**
-①WIN+R→輸入：`shell:sendto`
+<br>①WIN+R→輸入：`shell:sendto`
 <br>②右鍵→New→Shortcut→Location of the item中輸入：`"python地址""kinder classify.py地址"`。
 <br>示例：`"D:\Program Files\Python\python.exe""E:\KinderClassify\kinder_classify.py"`
 <br>
