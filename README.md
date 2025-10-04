@@ -50,7 +50,8 @@ pip install tkinterdnd2
 python -c "import tkinter; print('tk ok'); import tkinterdnd2; print('tkinterdnd2 ok')"
 ```
 顯示如下，就可用：
-```tk ok
+```
+tk ok
 tkinterdnd2 ok
 ```
 ## 5、測試Kinder_Classify和Checklist_viewer能不能用
@@ -82,7 +83,7 @@ tkinterdnd2 ok
 | 行（鍵名） | 範例內容 | 功能與說明 |
 |-------------|-----------|-------------|
 | `"key":` | `"【向井康二】世一"` | 類別名稱，顯示於主程式按鈕與右側清單中。 |
-| `"exts":` | `[ ".xls", ".xlsx", ".pdf" ]` | 限定允許搬入的檔案類型。 |
+| `"exts":` | `[ ".xls", ".xlsx", ".pdf" ]` | 限定允許搬入的檔案類型。什麼都能搬入可以為空，或者整行刪掉。 |
 | `"rename":` | `"{YYYY}{MM}{DD}_世一證據_{orig}{ext}"` | 定義搬移後檔案的自動命名規則。 |
 | `"path_template":` | `"E:/Finance/{YYYY}/{YYYYMM}/向井康二"` | 指定此分類的目標資料夾路徑模板。 |
 | `"present_rule":` | `{ "mode": "any" }` | 控制右側清單樹的狀態顯示條件。 `"any"`≥1個就√，`"count_at_least", "n": 3` ≥3個才√|
