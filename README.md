@@ -65,15 +65,6 @@ tkinterdnd2 ok
 | 沒有 `path_template` 也沒有 `dest_subdir` | 僅用 `default_path_template` 生成。          |
 | 想修改分類名稱                              | 改 `key`。                                |
 <br>②分類修改：<br>
-|行（鍵名）|資料型別|範例內容|功能與說明|
-| ----------- | ----------- | ----------- | ----------- |
-| `"key"` | 字串 (string) | `"【向井康二】世一"` | 類別名稱。會出現在主程式按鈕與右側清單中。建議使用「【】」包住主分類名稱，後綴表示具體子項，例如：「【學生】照片」。                                                                                                                                          |
-| `"exts"`          | 陣列 (list)   | `[ ".xls", ".xlsx", ".pdf" ]`       | 限定允許搬入的檔案類型。若副檔名不在此清單中，拖入時會被忽略。<br>📎 若想允許所有類型，可寫成 `"exts": []`。                                                                                                                                    |
-| `"rename"`        | 字串 (string) | `"{YYYY}{MM}{DD}_世一證據_{orig}{ext}"` | 檔案搬移後的自動命名規則。<br>支援的變數：<br>• `{YYYY}` 年份（如 `2025`）<br>• `{MM}` 月份（兩位數，如 `10`）<br>• `{DD}` 日期（兩位數，如 `04`）<br>• `{orig}` 原始檔名（不含副檔名）<br>• `{ext}` 原始副檔名（含點，如 `.pdf`）<br>➡ 例如：`20251004_世一證據_報銷單.pdf`。 |
-| `"path_template"` | 字串 (string) | `"E:/Finance/{YYYY}/{YYYYMM}/向井康二"` | 此分類的目標資料夾路徑模板。<br>若有設定此項，會**忽略全域的 `default_path_template`**。<br>支援變數：`{YYYY}`, `{YYYYMM}`, `{MM}`。<br>➡ 例如：2025 年 10 月的檔案會自動放入 `E:/Finance/2025/202510/向井康二/`。                                      |
-| `"present_rule"`  | 物件 (object) | `{ "mode": "any" }`                 | 用於右側清單樹的 ✅ / ⬜ 狀態顯示規則。<br>• `"any"`：只要資料夾內有一個檔案就顯示 ✅。<br>• `"count_at_least"`：例如 `{ "mode": "count_at_least", "n": 3 }` 代表必須 ≥3 個檔案才 ✅。                                                             |
-|用不到的|x|x|整行刪掉|
-```
 {
   "key": "【向井康二】世一",
   "exts": [".xls", ".xlsx", ".pdf"],
@@ -81,7 +72,15 @@ tkinterdnd2 ok
   "path_template": "E:/Finance/{YYYY}/{YYYYMM}/向井康二",
   "present_rule": { "mode": "any" }
 }
+
 ```
+| 行（鍵名） | 範例內容 | 功能與說明 |
+|-------------|-----------|-------------|
+| `"key"` | `"【向井康二】世一"` | 類別名稱，顯示於主程式按鈕與右側清單中。 |
+| `"exts"` | `[ ".xls", ".xlsx", ".pdf" ]` | 限定允許搬入的檔案類型。 |
+| `"rename"` | `"{YYYY}{MM}{DD}_世一證據_{orig}{ext}"` | 定義搬移後檔案的自動命名規則。 |
+| `"path_template"` | `"E:/Finance/{YYYY}/{YYYYMM}/向井康二"` | 指定此分類的目標資料夾路徑模板。 |
+| `"present_rule"` | `{ "mode": "any" }` | 控制右側清單樹的狀態顯示條件。 |
 
 ## 7、滑鼠右鍵SendTo
 -WIN+R→輸入：`shell:sendto`
