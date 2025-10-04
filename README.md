@@ -58,12 +58,15 @@ tkinterdnd2 ok
 
 ## 6、更改目標文件和分類名字
 ①目標路徑修改：
-| 情境                                   | 程式邏輯                                    |
+| 代碼                                   | 解釋                                    |
 | ------------------------------------ | --------------------------------------- |
-| 有 `path_template`                    | 使用此分類自己的目錄模板。                           |
+| `"out_root":`        | 根目錄。所有分類的目標資料夾都會以這個路徑為起點建立。                         |
+| `"default_path_template":`        | 全局路徑                           |
+|----|下面解釋他們關係|
+| 有 `path_template` （在分類底下）| 使用此分類自己的目錄模板。                           |
 | 沒有 `path_template` 但有 `dest_subdir`  | 使用全域 `default_path_template`，並在最後拼上子目錄。 |
 | 沒有 `path_template` 也沒有 `dest_subdir` | 僅用 `default_path_template` 生成。          |
-| 想修改分類名稱                              | 改 `key`。                                |
+| 想修改分類名稱                              | 改 `key`。我設定了大分類用【】括住                                |
 
   <br>②分類修改：<br>
 ```
@@ -78,11 +81,13 @@ tkinterdnd2 ok
 
 | 行（鍵名） | 範例內容 | 功能與說明 |
 |-------------|-----------|-------------|
-| `"key"` | `"【向井康二】世一"` | 類別名稱，顯示於主程式按鈕與右側清單中。 |
-| `"exts"` | `[ ".xls", ".xlsx", ".pdf" ]` | 限定允許搬入的檔案類型。 |
-| `"rename"` | `"{YYYY}{MM}{DD}_世一證據_{orig}{ext}"` | 定義搬移後檔案的自動命名規則。 |
-| `"path_template"` | `"E:/Finance/{YYYY}/{YYYYMM}/向井康二"` | 指定此分類的目標資料夾路徑模板。 |
-| `"present_rule"` | `{ "mode": "any" }` | 控制右側清單樹的狀態顯示條件。 |
+| `"key":` | `"【向井康二】世一"` | 類別名稱，顯示於主程式按鈕與右側清單中。 |
+| `"exts":` | `[ ".xls", ".xlsx", ".pdf" ]` | 限定允許搬入的檔案類型。 |
+| `"rename":` | `"{YYYY}{MM}{DD}_世一證據_{orig}{ext}"` | 定義搬移後檔案的自動命名規則。 |
+| `"path_template":` | `"E:/Finance/{YYYY}/{YYYYMM}/向井康二"` | 指定此分類的目標資料夾路徑模板。 |
+| `"present_rule":` | `{ "mode": "any" }` | 控制右側清單樹的狀態顯示條件。 `"any"`≥1個就√，`"count_at_least", "n": 3` ≥3個才√|
+|`"dest_subdir":`|`"子目錄一級/子目錄二級"`|可刪，用於全局路徑下的子目錄。文檔放在`default_path_template`/`dest_subdir`的位置|
+
 
 ## 7、滑鼠右鍵SendTo
 -WIN+R→輸入：`shell:sendto`
