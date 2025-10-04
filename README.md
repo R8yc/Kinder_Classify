@@ -95,16 +95,16 @@ tkinterdnd2 ok
 
 
 ## 7、滑鼠右鍵SendTo
--WIN+R→輸入：`shell:sendto`
-<br>-右鍵→New→Shortcut→Location of the item中輸入：`"python地址""kinder classify.py地址"`。
+**SendTo-快捷方式(shortcut)設置**
+①WIN+R→輸入：`shell:sendto`
+<br>②右鍵→New→Shortcut→Location of the item中輸入：`"python地址""kinder classify.py地址"`。
 <br>示例：`"D:\Program Files\Python\python.exe""E:\KinderClassify\kinder_classify.py"`
 <br>
 | 地址 | 查詢 |
 | ------ | ------ |
 |python地址，示例：`D:\Program Files\Python\python.exe`|WIN+R→`cmd`→Enter→輸入`where python`|
-|kinder classify.py地址，示例`E:\KinderClassify\kinder_classify.py`|屬性|
+|kinder classify.py地址，示例`E:\KinderClassify\kinder_classify.py`|屬性|  
 
-  
 <br>**logo設置**
 <br>①文件準備：Photoshop準備好256*256的png，google search：png to ico。upload上去，download `*.ico`下來.
 <br>②設置：剛剛SendTo裡面的shortcut→屬性（Alt+左鍵雙擊）→Chang Icon→選剛剛 `*.ico`
