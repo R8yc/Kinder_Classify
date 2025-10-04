@@ -1,0 +1,116 @@
+{
+  "____README____": [
+    "==============================================================",
+    "==============  U S E R   E D I T   A R E A  =================",
+    "==============================================================",
+    "本配置文件决定了 Kinder Classify 的所有行为。",
+    "",
+    "【强烈建议】只修改以下两个顶层键，即可一处改全局：",
+    "",
+    "1) default_path_template（可选）：",
+    "   - 给所有类别统一使用的目标落地路径模板。",
+    "   - 可用占位：{YYYY} {MM} {YYYYMM}",
+    "   - 例：E:/ShangJin_Kindergarten/{YYYY}/{YYYYMM}/财税文件",
+    "",
+    "2) default_month_prompt（可选，布尔）：",
+    "   - true：分类时先询问月份（YYYYMM），回车默认当月；",
+    "   - false：不询问；用当前月。",
+    "",
+    "ps:",
+    "- 若个别类别需要不同路径，可在该类别里写 path_template 覆盖默认。",
+    "- 若个别类别需要不同月份策略，可在该类别里写 month_prompt 覆盖默认。",
+    "- 若既无默认也无类别模板，则使用 out_root/YYYY-MM/dest_subdir/ 的老规则。",
+    "==============================================================",
+    "==============  U S E R   E D I T   A R E A  =================",
+    "=============================================================="
+  ],
+
+  "out_root": "E:/ShangJin_Kindergarten/Unclassified",
+
+  "default_path_template": "E:/ShangJin_Kindergarten/{YYYY}/{YYYYMM}/财税文件",
+  "default_month_prompt": true,
+
+  "items": [
+    {
+      "key": "【网银】回单",
+      "dest_subdir": "网银/回单",
+      "rename": "01. {YYYY}{MM}_银行回单{ext}",
+      "present_rule": { "mode": "any" }
+    },
+    {
+      "key": "【网银】明细",
+      "dest_subdir": "网银/明细",
+      "rename": "02. {YYYY}{MM}_银行明细{ext}",
+      "present_rule": { "mode": "any" }
+    },
+    {
+      "key": "【伙食】幼儿膳食收入表",
+      "dest_subdir": "优鲜/幼儿膳食收入表",
+      "rename": "03. {YYYY}{MM}_幼儿膳食收入表{ext}",
+      "present_rule": { "mode": "any" },
+      "exts": [".pdf", ".xls", ".xlsx", ".csv"]
+    },
+    {
+      "key": "【伙食】教师膳食收入表",
+      "dest_subdir": "优鲜/教师膳食收入表",
+      "rename": "04. {YYYY}{MM}_教师膳食收入表{ext}",
+      "present_rule": { "mode": "any" },
+      "exts": [".pdf", ".xls", ".xlsx", ".csv"]
+    },
+    {
+      "key": "【伙食】幼儿应退伙食表",
+      "dest_subdir": "优鲜/幼儿应退伙食表",
+      "rename": "05. {YYYY}{MM}_幼儿应退伙食表{ext}",
+      "present_rule": { "mode": "any" },
+      "exts": [".pdf", ".xls", ".xlsx", ".csv"]
+    },
+    {
+      "key": "【伙食】台账收支余",
+      "dest_subdir": "优鲜/台账收支余",
+      "rename": "06. {YYYY}{MM}_台账教师幼儿收支余公示表{ext}",
+      "present_rule": { "mode": "any" },
+      "exts": [".pdf", ".xls", ".xlsx", ".csv"]
+    },
+    {
+      "key": "【税务】社保申报汇总表",
+      "dest_subdir": "税务/申报汇总表",
+      "rename": "07. {YYYY}{MM}_社保申报汇总表{ext}",
+      "present_rule": { "mode": "any" },
+      "exts": [".pdf", ".xls", ".xlsx", ".csv"]
+    },
+    {
+      "key": "【税务】社保申报个人明细表",
+      "dest_subdir": "税务/社保申报个人明细表",
+      "rename": "08. {YYYY}{MM}_社保申报个人明细表{ext}",
+      "present_rule": { "mode": "any" },
+      "exts": [".pdf", ".xls", ".xlsx", ".csv"]
+    },
+    {
+      "key": "【税务】全量发票查询结果",
+      "dest_subdir": "税务/全量发票查询结果",
+      "rename": "09. {YYYY}{MM}_全量发票查询结果{ext}",
+      "present_rule": { "mode": "any" },
+      "exts": [".pdf", ".xls", ".xlsx", ".csv"]
+    },
+    {
+      "key": "【税务】发票",
+      "dest_subdir": "税务/发票",
+      "rename": "10. {YYYY}{MM}_发票_{orig}{ext}",
+      "present_rule": { "mode": "any" }
+    },
+    {
+      "key": "【公积金】汇缴证明",
+      "dest_subdir": "公积金/汇缴证明",
+      "rename": "11. {YYYY}{MM}_公积金汇缴证明{ext}",
+      "present_rule": { "mode": "any" },
+      "exts": [".pdf", ".xls", ".xlsx", ".csv"]
+    },
+    {
+      "key": "【工资表】",
+      "dest_subdir": "工资表",
+      "rename": "12. {YYYY}{MM}_工资表{ext}",
+      "present_rule": { "mode": "any" },
+      "exts": [".pdf", ".xls", ".xlsx", ".csv"]
+    }
+  ]
+}
