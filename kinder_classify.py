@@ -8,9 +8,8 @@ Kinder Classify
 - 清单树：左“文件类别”，右“状态 | 数量”（勾选依据磁盘现状）
 - 状态栏提示（成功/刷新/撤销/重做等），仅错误弹窗
 
-【ver10本次改动】
-1) cmd_redo() 修复：重做后从待处理列表移除“移动前的旧路径”，不再误留。
-2) 总是默认选中第一个待处理文件：任何刷新文件列表的时刻都会自动选中第一个。
+【ver12本次改动】
+1) 中間待辦文件列表雙擊可打開文件。
 """
 
 import os, sys, json, shutil, logging, socket, threading, socketserver
