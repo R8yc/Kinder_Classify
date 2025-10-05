@@ -273,6 +273,8 @@ class App(TkinterDnD.Tk):
 
         self.file_list = tk.Listbox(mid, selectmode=tk.EXTENDED, height=24)
         self.file_list.pack(fill=tk.BOTH, expand=True)
+        # ★ 新增：双击打开该行对应文件
+        self.file_list.bind("<Double-1>", self._open_file_from_list)
 
         if HAS_DND:
             self.file_list.drop_target_register(DND_FILES)
@@ -310,6 +312,33 @@ class App(TkinterDnD.Tk):
         ttk.Button(btn_right, text="重做 (Ctrl+Y)", command=self.cmd_redo).pack(fill=tk.X, pady=4)
 
         self.refresh_status()
+
+    # ---------- ★ 新增方法：双击打开文件 ----------
+    def _open_file_from_list(self, event=None):
+        """Double-click a file in the middle list to open it with the system default app."""
+        try:
+            # Prefer the row under the mouse; fall back to current selection
+            if event is not None and hasattr(self.file_list, "nearest"):
+                idx = self.file_list.nearest(event.y)
+            else:
+                idx = self.file_list.curselection()[0] if self.file_list.curselection() else None
+            if idx is None or idx < 0 or idx >= len(self.files):
+                return
+
+            p = Path(self.files[idx])
+            if not p.exists():
+                messagebox.showerror("打开失败", f"文件不存在：{p}")
+                return
+
+            if sys.platform.startswith("win"):
+                os.startfile(str(p))
+            elif sys.platform == "darwin":
+                import subprocess; subprocess.Popen(["open", str(p)])
+            else:
+                import subprocess; subprocess.Popen(["xdg-open", str(p)])
+        except Exception as e:
+            logging.exception("open file error: %s", e)
+            messagebox.showerror("打开失败", str(e))
 
     # ---------- 辅助 ----------
     def set_status(self, text: str): 
