@@ -9,7 +9,7 @@
     "",
     "1) default_path_template（可选）：",
     "   - 给所有类别统一使用的目标落地路径模板。",
-    "   - 可用占位：{YYYY} {MM} {YYYYMM}",
+    "   - 可用占位：{YYYY} {MM} {YYYYMM} {MM-1}",
     "   - 例：E:/RAY/{YYYY}/{YYYYMM}/财税文件",
     "",
     "2) default_month_prompt（可选，布尔）：",
@@ -34,7 +34,7 @@
     {
       "key": "【K&P】杂志图",
       "dest_subdir": "K&P/杂志图",
-      "rename": "01. {YYYY}{MM}_KP杂志图{ext}",
+      "rename": "01. {YYYY}{MM-1}_KP杂志图{ext}",
       "present_rule": { "mode": "any" }
     },
     {
@@ -114,3 +114,4 @@
     }
   ]
 }
+
