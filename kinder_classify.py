@@ -78,22 +78,26 @@ def move_with_conflict(src: Path, dst: Path) -> Path:
 def target_dir(cfg: dict, it: dict, y: int, m: int) -> Path:
     YYYY, MM, YYYYMM = fmt_ym(y, m)
 
-    # 1) 先确定使用哪个模板（item 覆盖全局）
+    # 1) 选择路径模板：item 覆盖全局
     if it.get("path_template"):
         tpl = it["path_template"]
     elif cfg.get("default_path_template"):
         tpl = cfg["default_path_template"]
     else:
-        # 老规则兜底
+        # 老规则兜底（保持你原来的行为）
         return Path(cfg["out_root"]) / f"{YYYYMM}_Unclassified"
 
-    # 2) 支持 {dest_subdir} 占位符
-    dest_subdir = it.get("dest_subdir", "")
-    base = Path(tpl.format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM, dest_subdir=dest_subdir))
+    # 2) 先把 dest_subdir 自己也做一次占位符替换
+    raw_sub = it.get("dest_subdir", "")
+    sub = raw_sub.format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM) if raw_sub else ""
 
-    # 3) 若模板里没写 {dest_subdir}，但 item 提供了 dest_subdir，则自动追加
-    if dest_subdir and "{dest_subdir}" not in tpl:
-        base = base / dest_subdir
+    # 3) 套模板本身（支持模板中直接写 {dest_subdir}）
+    base = Path(tpl.format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM, dest_subdir=sub))
+
+    # 4) 如果模板里没写 {dest_subdir}，但配置给了 sub，则在末尾追加
+    if sub and "{dest_subdir}" not in tpl:
+        base = base / sub
+
     return base
 
 
@@ -177,20 +181,81 @@ class App(TkinterDnD.Tk):
         # ===== 布局 =====
         frm = ttk.Frame(self, padding=10); frm.pack(fill=tk.BOTH, expand=True)
 
-        # 左栏：年月 + 类目按钮
-        left = ttk.Frame(frm); left.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
-        ttk.Label(left, text="操作年月").pack(anchor="w")
-        ybox = ttk.Combobox(left, textvariable=self.year_var, width=8, state="readonly",
+        # ---------------- 左栏：固定头部 + 固定标题 + “类别按钮列表”可滚动 ----------------
+        left_col = ttk.Frame(frm)
+        left_col.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+
+        # (1) 固定头部：操作年月（不随滚动）
+        head = ttk.Frame(left_col)
+        head.pack(fill=tk.X)
+
+        ttk.Label(head, text="操作年月").pack(anchor="w")
+        ybox = ttk.Combobox(head, textvariable=self.year_var, width=8, state="readonly",
                             values=[str(y) for y in range(2000, y0+6)])
         ybox.pack(anchor="w")
-        mbox = ttk.Combobox(left, textvariable=self.month_var, width=8, state="readonly",
+        mbox = ttk.Combobox(head, textvariable=self.month_var, width=8, state="readonly",
                             values=[f"{i:02d}" for i in range(1, 13)])
         mbox.pack(anchor="w", pady=(0, 8))
         ybox.bind("<<ComboboxSelected>>", lambda e: self.refresh_status())
         mbox.bind("<<ComboboxSelected>>", lambda e: self.refresh_status())
 
+        # (2) 固定小标题：不滚动
+        ttk.Label(left_col, text="类别（点击分类）").pack(anchor="w", pady=(8, 4))
+
+        # (3) 可滚动区：仅“类别下面”的所有按钮在这里
+        scroll_wrap = ttk.Frame(left_col)
+        scroll_wrap.pack(fill=tk.BOTH, expand=True)
+
+        # —— 关键改动 A：固定宽度 200，并确保只竖向滚动 —— #
+        left_canvas = tk.Canvas(scroll_wrap, borderwidth=0, highlightthickness=0, width=200)
+        left_vsb = ttk.Scrollbar(scroll_wrap, orient="vertical", command=left_canvas.yview)
+        left_canvas.configure(yscrollcommand=left_vsb.set)
+
+        # 画布宽度固定，填充竖向即可；不随父级横向拉伸
+        left_canvas.pack(side=tk.LEFT, fill=tk.Y, expand=False)
+        left_vsb.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # 真正承载分类按钮的内部 Frame（固定宽度 200）
+        left = ttk.Frame(left_canvas, width=200)
+        win_id = left_canvas.create_window((0, 0), window=left, anchor="nw", width=200)
+
+        # 更新滚动区域
+        def _update_scrollregion(event=None):
+            left_canvas.configure(scrollregion=left_canvas.bbox("all"))
+        left.bind("<Configure>", _update_scrollregion)
+
+        # 固定内部 Frame 宽度为 200（不随画布伸缩）
+        def _keep_fixed_width(event=None):
+            left_canvas.itemconfigure(win_id, width=200)
+        left_canvas.bind("<Configure>", _keep_fixed_width)
+
+        # —— 改进：把滚轮事件直接绑定到可滚动区域及其子控件，避免 bind_all 抖动 —— #
+        SCROLL_UNITS = 3  # 滚动步长：2 更细腻，4/5 更快
+
+        def _on_mousewheel(event):
+            """
+            Windows：event.delta 为 ±120 的倍数；向下滚 delta<0
+            我们遵循 Windows 习惯：向下滚 = 内容向下（滚动条向下）
+            """
+            if hasattr(event, "delta") and event.delta != 0:
+                move = int(-event.delta / 120) * SCROLL_UNITS
+                if move != 0:
+                    left_canvas.yview_scroll(move, "units")
+            elif hasattr(event, "num") and event.num in (4, 5):
+                # Linux: 4=上，5=下
+                move = (-1 if event.num == 4 else 1) * SCROLL_UNITS
+                left_canvas.yview_scroll(move, "units")
+
+        def _bind_scrollwheel(target):
+            target.bind("<MouseWheel>", _on_mousewheel, add="+")
+            target.bind("<Button-4>",  _on_mousewheel, add="+")  # Linux
+            target.bind("<Button-5>",  _on_mousewheel, add="+")  # Linux
+            for child in target.winfo_children():
+                _bind_scrollwheel(child)
+        # —— 改进结束 —— #
+
+        # 样式与按钮生成（保持不变）
         s = ttk.Style(self); s.configure("Left.TButton", anchor="w", padding=(6, 4))
-        ttk.Label(left, text="类别（点击分类）").pack(anchor="w", pady=(8, 4))
         order, groups = grouped_items(cfg["items"])
         for g in order:
             ttk.Label(left, text=f"—— {g} ——", foreground="#666").pack(anchor="w", pady=(8, 2))
@@ -199,19 +264,20 @@ class App(TkinterDnD.Tk):
                 ttk.Button(left, text=it["key"], style="Left.TButton",
                            command=lambda _it=it: self.assign(_it)).pack(fill=tk.X, pady=1)
 
-        # 中栏：待分类文件 + 状态栏 + 按钮
+        # 绑定滚轮到可滚动区及其子控件，使鼠标停在列表上即可滚动
+        _bind_scrollwheel(left)
+
+        # ---------------- 中栏：待分类文件 + 状态栏 + 按钮（保持原样） ----------------
         mid = ttk.Frame(frm); mid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         ttk.Label(mid, text="待分类文件（可拖拽或“添加文件…”）").pack(anchor="w")
 
         self.file_list = tk.Listbox(mid, selectmode=tk.EXTENDED, height=24)
         self.file_list.pack(fill=tk.BOTH, expand=True)
 
-        # 允许在列表上拖拽
         if HAS_DND:
             self.file_list.drop_target_register(DND_FILES)
             self.file_list.dnd_bind('<<Drop>>', self._on_drop)
 
-        # 按钮区与状态栏
         btn_mid = ttk.Frame(mid); btn_mid.pack(side=tk.BOTTOM, fill=tk.X, pady=(6, 0))
         ttk.Button(btn_mid, text="添加文件…", command=self.add_files_dialog).pack(side=tk.LEFT)
         ttk.Button(btn_mid, text="移除所选", command=self.remove_selected).pack(side=tk.LEFT, padx=6)
@@ -223,13 +289,12 @@ class App(TkinterDnD.Tk):
 
         self.refresh_files()
 
-        # 右栏：清单树 + 按钮
+        # ---------------- 右栏：清单树 + 按钮（保持原样） ----------------
         right = ttk.Frame(frm); right.pack(side=tk.RIGHT, fill=tk.Y)
 
         self.root_hint = tk.StringVar()
         ttk.Label(right, textvariable=self.root_hint, foreground="#0066cc").pack(anchor="w")
 
-        # 清单树：左列“文件类别”，右列“状态 | 数量”
         self.tree = ttk.Treeview(right, columns=("status",), show="tree headings", height=24)
         self.tree.heading("#0", text="文件类别")
         self.tree.heading("status", text="状态 | 数量")
@@ -263,7 +328,7 @@ class App(TkinterDnD.Tk):
         paths = filedialog.askopenfilenames(title="选择要分类的文件")
         self._add_files(paths)
 
-    # —— 新增：统一的“默认选中第一个”工具 ——
+    # —— 统一的“默认选中第一个”工具 ——
     def _select_first_if_any(self):
         try:
             self.file_list.selection_clear(0, tk.END)
@@ -330,7 +395,6 @@ class App(TkinterDnD.Tk):
 
         cur = Path(entry["current"])  # 当前真实位置（通常为目标位置）
         if not cur.exists():
-            # 丢失则允许后续重做，避免阻断
             self.redo_stack.append(entry)
             self.set_status("撤销跳过：文件不存在"); return
 
@@ -378,8 +442,6 @@ class App(TkinterDnD.Tk):
     def assign(self, it: dict):
         sel = list(self.file_list.curselection())
         if not sel:
-            # 由于我们总是默认选中第一个，这里通常不会走到“全选”逻辑；
-            # 但为了与旧行为完全兼容，仍保留兜底（无选择时才处理全部）。
             sel = list(range(len(self.files)))
         if not sel:
             self.set_status("没有可分类的文件"); return
@@ -409,7 +471,7 @@ class App(TkinterDnD.Tk):
             logging.info(f"MOVED: {src} -> {final}")
 
         if cnt_ok: self.redo_stack.clear()
-        self.refresh_files()   # 会自动选中第一个
+        self.refresh_files()
         self.refresh_status()
         msg = f"{it['key']}：分类成功 {cnt_ok} 个"
         if cnt_skip_ext: msg += f"；扩展名不匹配跳过 {cnt_skip_ext} 个"
