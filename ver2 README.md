@@ -20,6 +20,67 @@
 <br>**只開一個窗口：** `kinder_classify(主程序)`和`checklist_viewer(文件清單檢查)`都通過本地TCP和windows互斥量。`SendTo`時，文件列表只追加到現有窗口，不打開新窗口。
 <br>**底部狀態欄提醒：** 使用和測試時候覺得彈窗好煩人，改為狀態欄通知。
 <br>**Log日誌** 記錄動作與異常，可追蹤。
+# 目的
+- 將散落在各個地方的文件，通過拖拽或者 SendTo，傳送到預設類別和命名規則的置頂文件夾。  
+- 有文件清單檢查文件是否齊全、文件數量。  
+- 可撤回 / 重做，關閉窗口後記憶就無了。
+
+# 樣子
+嗱~~  
+<img width="273" height="500" alt="image" src="https://github.com/user-attachments/assets/633af486-f1b2-4d16-a5c3-f86d89c242e8" />  
+<img width="770" height="500" alt="image" src="https://github.com/user-attachments/assets/83004506-f8bb-4ef0-bbad-5358fae530dc" />
+
+# 功能
+僅支援 **Windows 系統** ・ **Python** ・ **簡中 Sim_Chn**  
+<br>**文件分類：** 支援透過按鈕或拖曳，將文件分配到預設類別資料夾。符號【】來框主分類名。歸檔邏輯是按照年月 → 文件列別。  
+<br>**清單視圖：** 右側樹狀結構顯示文件類別，並統計每類文件數量。  
+<br>**撤回 / 重做：** 支援逐步撤回與重做操作，保證操作可逆。  
+<br>**快捷鍵支援：**
+- `F5` 刷新清單（PS. 一般個清單自己會刷新）  
+- `Ctrl+Z` 撤回一步  
+- `Ctrl+Y` 重做一步  
+<br>**只開一個窗口：** `kinder_classify（主程序）` 和 `checklist_viewer（文件清單檢查）` 都通過本地 TCP 和 Windows 互斥量。`SendTo` 時，文件列表只追加到現有窗口，不打開新窗口。  
+<br>**底部狀態欄提醒：** 減少彈窗干擾，改為狀態欄通知。  
+<br>**Log 日誌：** 記錄動作與異常，可追蹤。  
+
+---
+
+# 【ver12.2 本次改動】
+1. **手動「本月沒有的文檔」標記 ❎**：右側清單「狀態 | 數量」列可單擊切換 ⬜ ↔ ❎（當自動為 ✅ 時不可改）。  
+2. **與 Checklist Viewer 同步**：`na_overrides.json` 實現 ❎ 狀態跨視窗同步。  
+3. **新增日期佔位符支援**：支援 `{MM-1}`、`{YYYY-1}`、`{YYYYMM-1}` 用於 `rename`、`path_template`、`dest_subdir`、`default_path_template`。  
+4. **左側加入滾動條**：當分類過多時可上下滾動瀏覽。  
+5. **中間清單支援雙擊開啟文件**：在中間區域直接雙擊檔案可開啟目標位置。  
+
+---
+
+# 不足
+因為懶，所以可能不利於別人二次開發和修改。
+
+---
+
+# 操作
+
+## 1、下載好文件
+三個主要檔案：
+
+| 檔名 | 說明 |
+| ---- | ---- |
+| `kinder_classify.py` | 主程式 |
+| `checklist_viewer.pyw` | 清單獨立視窗（可選） |
+| `config.json` | 設定文件（類別、路徑等） |
+| `kinder_classify.log` | 程式自動生成的日誌（可忽略） |
+
+---
+
+## 2、確定好要放的位置，唔可以刪~
+
+## 3、安裝 Python
+① 官網下載 `python.org`  
+② 檢查是否安裝成功：WIN+R → `cmd` → Enter
+```bash
+python -V
+
 
 # 不足
 因為懶，所以可能不利於別人二次開發和修改。
@@ -32,6 +93,7 @@
 | `kinder_classify.py`   | 主程式             |
 | `checklist_viewer.pyw` | 清單獨立視窗（可選）      |
 | `config.json`          | 設定文件（類別、路徑等）    |
+| `na_overrides.json` | 程式自動生成，用於記錄❎「本月無文檔」標記（自動建立，可忽略） |
 | `kinder_classify.log`  | 程式自動生成的日誌（可以忽略） |
 
 ## 2、確定好要放的位置，唔可以刪~
@@ -136,5 +198,5 @@ tkinterdnd2 ok
 <br>**Treeview:** 
 <br>-兩欄：左 文件類別（`#0`）、右 狀態[數量]（`values=("✅[5]",)` 或 `("⬜[0]",)`）。
 <br>-群組(大分類)：`【】` 解析；每組插一個「—— 組名 ——」父節點。
-<br>-互動：雙擊非組節點 → `os.startfile(target_dir(item))` 打開目錄。
+<br>-互動：雙擊非組節點 → `os.startfile(target_dir(item))` 打開目錄或文件。單擊「狀態」可切換 ❎（本月無文檔），標記該類別本月不需文件；再次點擊可取消。此標記會自動寫入 `na_overrides.json`，並與 Checklist Viewer 同步。 
 
