@@ -8,8 +8,10 @@ Kinder Classify
 - 清单树：左“文件类别”，右“状态 | 数量”（勾选依据磁盘现状）
 - 状态栏提示（成功/刷新/撤销/重做等），仅错误弹窗
 
-【ver12本次改动】
-1) 中間待辦文件列表雙擊可打開文件。
+【ver12.2本次改动】
+1) 手动“本月没有的文档”标记 ❎ ：右侧清单“状态 | 数量”列单击切换 ⬜ ↔ ❎（当自动为 ✅ 时不可改）
+2) 与 Checklist Viewer 通过 na_overrides.json 同步
+3) 新增支持占位符：{MM-1}、{YYYY-1}、{YYYYMM-1}（rename / path_template / dest_subdir / default_path_template）
 """
 
 import os, sys, json, shutil, logging, socket, threading, socketserver
@@ -17,6 +19,7 @@ from pathlib import Path
 from datetime import datetime
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+from typing import List, Dict
 
 # ---------- 拖拽支持 ----------
 try:
@@ -39,7 +42,9 @@ CONFIG = None; LOG = None
 for base in CANDIDATES:
     cfg = base / "config.json"
     if cfg.exists():
-        CONFIG = cfg; LOG = base / "kinder_classify.log"; break
+        CONFIG = cfg
+        LOG = base / "kinder_classify.log"
+        break
 if CONFIG is None:
     CONFIG = SCRIPT_DIR / "config.json"
     LOG = SCRIPT_DIR / "kinder_classify.log"
@@ -50,6 +55,27 @@ logging.basicConfig(filename=str(LOG), level=logging.INFO,
 # 单实例 / IPC
 IPC_HOST, IPC_PORT = "127.0.0.1", 53451
 
+# —— 本月不适用（❎）相关：与 config.json 同目录的持久化文件 —— #
+NA_FILE = CONFIG.with_name("na_overrides.json")
+
+def _load_na() -> dict:
+    try:
+        if NA_FILE.exists():
+            with open(NA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+def _save_na(data: dict):
+    try:
+        tmp = NA_FILE.with_suffix(".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, NA_FILE)
+    except Exception:
+        # 保持静默，不影响主流程
+        logging.exception("save NA overrides failed")
 
 # ---------- 通用工具 ----------
 def load_config():
@@ -57,56 +83,80 @@ def load_config():
         return json.load(f)
 
 def now_ym():
-    n = datetime.now(); return n.year, n.month
+    n = datetime.now()
+    return n.year, n.month
 
 def fmt_ym(y, m):
     return f"{y:04d}", f"{m:02d}", f"{y:04d}{m:02d}"
 
+# ====== 新增：支持 {MM-1}/{YYYY-1}/{YYYYMM-1} 的轻量替换（不改变其它逻辑） ======
+def _prev_ym(y: int, m: int):
+    return (y-1, 12) if m == 1 else (y, m-1)
+
+def _expand_month_minus_one(s: str, y: int, m: int):
+    """仅把 {YYYY-1}/{MM-1}/{YYYYMM-1} 预先替换为“上一月”的具体值；
+    其它占位符继续交给后续 .format(YYYY=..., MM=..., YYYYMM=...) 处理。
+    """
+    if not isinstance(s, str):
+        return s
+    yp, mp = _prev_ym(y, m)
+    return (s.replace("{YYYY-1}", f"{yp:04d}")
+             .replace("{MM-1}", f"{mp:02d}")
+             .replace("{YYYYMM-1}", f"{yp:04d}{mp:02d}"))
+
 def safe_name(s: str) -> str:
-    for c in '<>:"/\\|?*': s = s.replace(c, "_")
+    for c in '<>:"/\\|?*':
+        s = s.replace(c, "_")
     return s.rstrip(" .")
 
 def move_with_conflict(src: Path, dst: Path) -> Path:
     dst.parent.mkdir(parents=True, exist_ok=True)
     t, i = dst, 1
     while t.exists():
-        t = dst.with_name(f"{dst.stem}-{i}{dst.suffix}"); i += 1
+        t = dst.with_name(f"{dst.stem}-{i}{dst.suffix}")
+        i += 1
     shutil.move(str(src), str(t))
     return t
 
 def target_dir(cfg: dict, it: dict, y: int, m: int) -> Path:
     YYYY, MM, YYYYMM = fmt_ym(y, m)
 
-    # 1) 选择路径模板：item 覆盖全局
+    # 1) 选择路径模板：item 覆盖全局；保持你原有优先级与兜底逻辑
     if it.get("path_template"):
         tpl = it["path_template"]
     elif cfg.get("default_path_template"):
         tpl = cfg["default_path_template"]
     else:
-        # 老规则兜底（保持你原来的行为）
         return Path(cfg["out_root"]) / f"{YYYYMM}_Unclassified"
 
-    # 2) 先把 dest_subdir 自己也做一次占位符替换
+    # 2) 先把 dest_subdir 自己也做一次“减一月”替换
     raw_sub = it.get("dest_subdir", "")
-    sub = raw_sub.format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM) if raw_sub else ""
+    if raw_sub:
+        raw_sub = _expand_month_minus_one(raw_sub, y, m)
+        sub = raw_sub.format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM)
+    else:
+        sub = ""
 
-    # 3) 套模板本身（支持模板中直接写 {dest_subdir}）
+    # 3) 模板本身的“减一月”替换，再统一 format
+    tpl = _expand_month_minus_one(tpl, y, m)
     base = Path(tpl.format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM, dest_subdir=sub))
 
-    # 4) 如果模板里没写 {dest_subdir}，但配置给了 sub，则在末尾追加
+    # 4) 若模板未含 {dest_subdir}，但定义了 sub，则末尾追加（保持你原行为）
     if sub and "{dest_subdir}" not in tpl:
         base = base / sub
 
     return base
 
-
 def expected_prefix(it: dict, y: int, m: int) -> str:
+    """仅用于“前缀推断”以做计数/✅判定——不改你原来的判定方式。"""
     YYYY, MM, _ = fmt_ym(y, m)
-    tpl = it["rename"].replace("{YYYY}", YYYY).replace("{MM}", MM)
+    tpl_raw = _expand_month_minus_one(it["rename"], y, m)
+    tpl = tpl_raw.replace("{YYYY}", YYYY).replace("{MM}", MM)
     cut = len(tpl)
-    for token in ("{orig}", "{DD}", "{ext}"):
+    for token in ("{orig}", "{DD}", "{ext}", "{YYYYMM}"):
         i = tpl.find(token)
-        if i != -1 and i < cut: cut = i
+        if i != -1 and i < cut:
+            cut = i
     return tpl[:cut]
 
 def compute_status(cfg: dict, y: int, m: int) -> dict:
@@ -118,9 +168,12 @@ def compute_status(cfg: dict, y: int, m: int) -> dict:
         cnt = 0
         if d.exists():
             for p in d.iterdir():
-                if not p.is_file(): continue
-                if not p.name.startswith(prefix): continue
-                if exts and p.suffix.lower() not in exts: continue
+                if not p.is_file():
+                    continue
+                if not p.name.startswith(prefix):
+                    continue
+                if exts and p.suffix.lower() not in exts:
+                    continue
                 cnt += 1
         rule = it.get("present_rule", {"mode": "any"})
         ok = (cnt >= int(rule.get("n", 1))) if rule.get("mode") == "count_at_least" else (cnt > 0)
@@ -134,9 +187,12 @@ def count_for_item(cfg: dict, it: dict, y: int, m: int) -> int:
     cnt = 0
     if d.exists():
         for p in d.iterdir():
-            if not p.is_file(): continue
-            if not p.name.startswith(prefix): continue
-            if exts and p.suffix.lower() not in exts: continue
+            if not p.is_file():
+                continue
+            if not p.name.startswith(prefix):
+                continue
+            if exts and p.suffix.lower() not in exts:
+                continue
             cnt += 1
     return cnt
 
@@ -144,19 +200,19 @@ def group_of(k: str) -> str:
     l, r = k.find("【"), k.find("】")
     return k[l+1:r].strip() if (l != -1 and r != -1 and r > l) else "其他"
 
-def grouped_items(items: list[dict]):
+def grouped_items(items):
     groups, order = {}, []
     for it in items:
         g = group_of(it["key"])
         if g not in groups:
-            groups[g] = []; order.append(g)
+            groups[g] = []
+            order.append(g)
         groups[g].append(it)
     return order, groups
 
-
 # ---------- 主应用 ----------
 class App(TkinterDnD.Tk):
-    def __init__(self, cfg: dict, files_cli: list[str]):
+    def __init__(self, cfg: dict, files_cli: List[str]):
         super().__init__()
         self.cfg = cfg
         self.files = [Path(f) for f in files_cli if Path(f).exists()]
@@ -164,8 +220,8 @@ class App(TkinterDnD.Tk):
         self.geometry("1120x700")
 
         # 撤销/重做栈：entry = {"orig": str, "dst": str, "current": str}
-        self.undo_stack: list[dict] = []
-        self.redo_stack: list[dict] = []
+        self.undo_stack = []  # type: List[Dict[str, str]]
+        self.redo_stack = []  # type: List[Dict[str, str]]
 
         y0, m0 = now_ym()
         self.year_var = tk.StringVar(value=str(y0))
@@ -178,13 +234,13 @@ class App(TkinterDnD.Tk):
             w.bind("<F5>",       lambda e: self.refresh_status())
 
         # ===== 布局 =====
-        frm = ttk.Frame(self, padding=10); frm.pack(fill=tk.BOTH, expand=True)
+        frm = ttk.Frame(self, padding=10)
+        frm.pack(fill=tk.BOTH, expand=True)
 
-        # ---------------- 左栏：固定头部 + 固定标题 + “类别按钮列表”可滚动 ----------------
+        # ---------------- 左栏（保持你原有逻辑） ----------------
         left_col = ttk.Frame(frm)
         left_col.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
 
-        # (1) 固定头部：操作年月（不随滚动）
         head = ttk.Frame(left_col)
         head.pack(fill=tk.X)
 
@@ -198,63 +254,47 @@ class App(TkinterDnD.Tk):
         ybox.bind("<<ComboboxSelected>>", lambda e: self.refresh_status())
         mbox.bind("<<ComboboxSelected>>", lambda e: self.refresh_status())
 
-        # (2) 固定小标题：不滚动
         ttk.Label(left_col, text="类别（点击分类）").pack(anchor="w", pady=(8, 4))
 
-        # (3) 可滚动区：仅“类别下面”的所有按钮在这里
         scroll_wrap = ttk.Frame(left_col)
         scroll_wrap.pack(fill=tk.BOTH, expand=True)
 
-        # —— 关键改动 A：固定宽度 200，并确保只竖向滚动 —— #
         left_canvas = tk.Canvas(scroll_wrap, borderwidth=0, highlightthickness=0, width=200)
         left_vsb = ttk.Scrollbar(scroll_wrap, orient="vertical", command=left_canvas.yview)
         left_canvas.configure(yscrollcommand=left_vsb.set)
-
-        # 画布宽度固定，填充竖向即可；不随父级横向拉伸
         left_canvas.pack(side=tk.LEFT, fill=tk.Y, expand=False)
         left_vsb.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # 真正承载分类按钮的内部 Frame（固定宽度 200）
         left = ttk.Frame(left_canvas, width=200)
         win_id = left_canvas.create_window((0, 0), window=left, anchor="nw", width=200)
 
-        # 更新滚动区域
         def _update_scrollregion(event=None):
             left_canvas.configure(scrollregion=left_canvas.bbox("all"))
         left.bind("<Configure>", _update_scrollregion)
 
-        # 固定内部 Frame 宽度为 200（不随画布伸缩）
         def _keep_fixed_width(event=None):
             left_canvas.itemconfigure(win_id, width=200)
         left_canvas.bind("<Configure>", _keep_fixed_width)
 
-        # —— 改进：把滚轮事件直接绑定到可滚动区域及其子控件，避免 bind_all 抖动 —— #
-        SCROLL_UNITS = 3  # 滚动步长：2 更细腻，4/5 更快
-
+        SCROLL_UNITS = 3
         def _on_mousewheel(event):
-            """
-            Windows：event.delta 为 ±120 的倍数；向下滚 delta<0
-            我们遵循 Windows 习惯：向下滚 = 内容向下（滚动条向下）
-            """
             if hasattr(event, "delta") and event.delta != 0:
                 move = int(-event.delta / 120) * SCROLL_UNITS
                 if move != 0:
                     left_canvas.yview_scroll(move, "units")
             elif hasattr(event, "num") and event.num in (4, 5):
-                # Linux: 4=上，5=下
                 move = (-1 if event.num == 4 else 1) * SCROLL_UNITS
                 left_canvas.yview_scroll(move, "units")
 
         def _bind_scrollwheel(target):
             target.bind("<MouseWheel>", _on_mousewheel, add="+")
-            target.bind("<Button-4>",  _on_mousewheel, add="+")  # Linux
-            target.bind("<Button-5>",  _on_mousewheel, add="+")  # Linux
+            target.bind("<Button-4>",  _on_mousewheel, add="+")
+            target.bind("<Button-5>",  _on_mousewheel, add="+")
             for child in target.winfo_children():
                 _bind_scrollwheel(child)
-        # —— 改进结束 —— #
 
-        # 样式与按钮生成（保持不变）
-        s = ttk.Style(self); s.configure("Left.TButton", anchor="w", padding=(6, 4))
+        s = ttk.Style(self)
+        s.configure("Left.TButton", anchor="w", padding=(6, 4))
         order, groups = grouped_items(cfg["items"])
         for g in order:
             ttk.Label(left, text=f"—— {g} ——", foreground="#666").pack(anchor="w", pady=(8, 2))
@@ -262,36 +302,37 @@ class App(TkinterDnD.Tk):
             for it in groups[g]:
                 ttk.Button(left, text=it["key"], style="Left.TButton",
                            command=lambda _it=it: self.assign(_it)).pack(fill=tk.X, pady=1)
-
-        # 绑定滚轮到可滚动区及其子控件，使鼠标停在列表上即可滚动
         _bind_scrollwheel(left)
 
-        # ---------------- 中栏：待分类文件 + 状态栏 + 按钮（保持原样） ----------------
-        mid = ttk.Frame(frm); mid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        # ---------------- 中栏（保持原有逻辑） ----------------
+        mid = ttk.Frame(frm)
+        mid.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
         ttk.Label(mid, text="待分类文件（可拖拽或“添加文件…”）").pack(anchor="w")
 
         self.file_list = tk.Listbox(mid, selectmode=tk.EXTENDED, height=24)
         self.file_list.pack(fill=tk.BOTH, expand=True)
-        # ★ 新增：双击打开该行对应文件
         self.file_list.bind("<Double-1>", self._open_file_from_list)
 
         if HAS_DND:
             self.file_list.drop_target_register(DND_FILES)
             self.file_list.dnd_bind('<<Drop>>', self._on_drop)
 
-        btn_mid = ttk.Frame(mid); btn_mid.pack(side=tk.BOTTOM, fill=tk.X, pady=(6, 0))
+        btn_mid = ttk.Frame(mid)
+        btn_mid.pack(side=tk.BOTTOM, fill=tk.X, pady=(6, 0))
         ttk.Button(btn_mid, text="添加文件…", command=self.add_files_dialog).pack(side=tk.LEFT)
         ttk.Button(btn_mid, text="移除所选", command=self.remove_selected).pack(side=tk.LEFT, padx=6)
         ttk.Button(btn_mid, text="清空列表", command=self.clear_files).pack(side=tk.LEFT)
 
-        status_frame = ttk.Frame(mid); status_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(6, 6))
+        status_frame = ttk.Frame(mid)
+        status_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(6, 6))
         self.status_var = tk.StringVar(value="就绪")
         ttk.Label(status_frame, textvariable=self.status_var, anchor="w", relief="groove").pack(fill=tk.X)
 
         self.refresh_files()
 
-        # ---------------- 右栏：清单树 + 按钮（保持原样） ----------------
-        right = ttk.Frame(frm); right.pack(side=tk.RIGHT, fill=tk.Y)
+        # ---------------- 右栏（保持原有逻辑） ----------------
+        right = ttk.Frame(frm)
+        right.pack(side=tk.RIGHT, fill=tk.Y)
 
         self.root_hint = tk.StringVar()
         ttk.Label(right, textvariable=self.root_hint, foreground="#0066cc").pack(anchor="w")
@@ -305,30 +346,30 @@ class App(TkinterDnD.Tk):
         self.tree.tag_configure("group", foreground="#666")
         self.tree.bind("<Double-1>", self.open_dir_of_selected)
 
-        btn_right = ttk.Frame(right); btn_right.pack(fill=tk.X)
+        # —— 新增：单击“状态 | 数量”列切换 ⬜ ↔ ❎（✅ 不可手改） —— #
+        self.tree.bind("<Button-1>", self._on_status_click, add="+")
+
+        btn_right = ttk.Frame(right)
+        btn_right.pack(fill=tk.X)
         ttk.Button(btn_right, text="刷新 (F5)", command=self.refresh_status).pack(fill=tk.X, pady=4)
         ttk.Button(btn_right, text="撤销 (Ctrl+Z)", command=self.cmd_undo).pack(fill=tk.X, pady=4)
         ttk.Button(btn_right, text="重做 (Ctrl+Y)", command=self.cmd_redo).pack(fill=tk.X, pady=4)
 
         self.refresh_status()
 
-    # ---------- ★ 新增方法：双击打开文件 ----------
+    # ---------- ★ 新增方法：双击打开文件（保留你原有新增） ----------
     def _open_file_from_list(self, event=None):
-        """Double-click a file in the middle list to open it with the system default app."""
         try:
-            # Prefer the row under the mouse; fall back to current selection
             if event is not None and hasattr(self.file_list, "nearest"):
                 idx = self.file_list.nearest(event.y)
             else:
                 idx = self.file_list.curselection()[0] if self.file_list.curselection() else None
             if idx is None or idx < 0 or idx >= len(self.files):
                 return
-
             p = Path(self.files[idx])
             if not p.exists():
                 messagebox.showerror("打开失败", f"文件不存在：{p}")
                 return
-
             if sys.platform.startswith("win"):
                 os.startfile(str(p))
             elif sys.platform == "darwin":
@@ -340,16 +381,20 @@ class App(TkinterDnD.Tk):
             messagebox.showerror("打开失败", str(e))
 
     # ---------- 辅助 ----------
-    def set_status(self, text: str): 
+    def set_status(self, text: str):
         self.status_var.set(text)
 
     def current_ym(self):
-        try: return int(self.year_var.get()), int(self.month_var.get())
-        except Exception: return now_ym()
+        try:
+            return int(self.year_var.get()), int(self.month_var.get())
+        except Exception:
+            return now_ym()
 
     def _on_drop(self, event):
-        try: paths = self.tk.splitlist(event.data)
-        except Exception: paths = [event.data]
+        try:
+            paths = self.tk.splitlist(event.data)
+        except Exception:
+            paths = [event.data]
         self._add_files(paths)
 
     def add_files_dialog(self):
@@ -373,7 +418,9 @@ class App(TkinterDnD.Tk):
         for p in paths:
             pth = Path(os.path.expandvars(p))
             if pth.exists() and pth.is_file() and str(pth) not in exist:
-                self.files.append(pth); exist.add(str(pth)); added += 1
+                self.files.append(pth)
+                exist.add(str(pth))
+                added += 1
         if added:
             self.refresh_files()
             self.set_status(f"已添加 {added} 个文件")
@@ -398,7 +445,8 @@ class App(TkinterDnD.Tk):
         y, m = self.current_ym()
         YYYY, MM, YYYYMM = fmt_ym(y, m)
         if self.cfg.get("default_path_template"):
-            self.root_hint.set(self.cfg["default_path_template"].format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM))
+            tpl = _expand_month_minus_one(self.cfg["default_path_template"], y, m)
+            self.root_hint.set(tpl.format(YYYY=YYYY, MM=MM, YYYYMM=YYYYMM))
         else:
             self.root_hint.set(f"{self.cfg['out_root']}/{YYYYMM}_Unclassified")
 
@@ -406,30 +454,45 @@ class App(TkinterDnD.Tk):
             self.tree.delete(i)
 
         status = compute_status(self.cfg, y, m)
+
+        # —— 本月不适用（❎）读取 —— #
+        na_for_month = _load_na().get(f"{y:04d}-{m:02d}", {})
+
         order, groups = grouped_items(self.cfg["items"])
         for g in order:
             parent = self.tree.insert("", tk.END, text=f"—— {g} ——", tags=("group",), open=True)
             for it in groups[g]:
                 cnt = count_for_item(self.cfg, it, y, m)
-                mark = "✅" if status.get(it["key"], False) else "⬜"
+
+                # —— 状态优先级：❎ > ✅ > ⬜ —— #
+                if na_for_month.get(it["key"], False):
+                    mark = "❎"
+                elif status.get(it["key"], False):
+                    mark = "✅"
+                else:
+                    mark = "⬜"
+
                 self.tree.insert(parent, tk.END, text=it["key"], values=(f"{mark}[{cnt}]",))
         self.set_status("刷新成功")
 
     # ---------- 撤销 / 重做（一次一步） ----------
     def cmd_undo(self):
         if not self.undo_stack:
-            self.set_status("没有可撤销的操作"); return
+            self.set_status("没有可撤销的操作")
+            return
         entry = self.undo_stack.pop()
 
         cur = Path(entry["current"])  # 当前真实位置（通常为目标位置）
         if not cur.exists():
             self.redo_stack.append(entry)
-            self.set_status("撤销跳过：文件不存在"); return
+            self.set_status("撤销跳过：文件不存在")
+            return
 
         orig = Path(entry["orig"])
         tgt, i = orig, 1
         while tgt.exists():
-            tgt = orig.with_name(f"{orig.stem}-undo{i}{orig.suffix}"); i += 1
+            tgt = orig.with_name(f"{orig.stem}-undo{i}{orig.suffix}")
+            i += 1
 
         cur = cur.rename(tgt)
         entry["current"] = cur
@@ -443,19 +506,20 @@ class App(TkinterDnD.Tk):
 
     def cmd_redo(self):
         if not self.redo_stack:
-            self.set_status("没有可重做的操作"); return
+            self.set_status("没有可重做的操作")
+            return
         entry = self.redo_stack.pop()
 
         cur = Path(entry["current"])  # 撤销后当前应位于“orig 或其 -undoK”路径
         if not cur.exists():
             self.undo_stack.append(entry)
-            self.set_status("重做跳过：文件不存在"); return
+            self.set_status("重做跳过：文件不存在")
+            return
 
         dst = Path(entry["dst"])
-        old = cur                               # ← 记录移动前路径（关键）
+        old = cur                               # 记录移动前路径
         final = move_with_conflict(cur, dst)    # 执行重做移动
         entry["current"] = final
-        # 修复点：从待办列表移除“旧路径 old”，而不是 final
         try:
             self.files = [p for p in self.files if Path(p) != old]
         except Exception:
@@ -472,53 +536,101 @@ class App(TkinterDnD.Tk):
         if not sel:
             sel = list(range(len(self.files)))
         if not sel:
-            self.set_status("没有可分类的文件"); return
+            self.set_status("没有可分类的文件")
+            return
 
         y, m = self.current_ym()
         cnt_ok = cnt_skip_ext = cnt_skip_missing = 0
         for idx in sorted(sel, reverse=True):
             src = self.files[idx]
             if not Path(src).exists():
-                cnt_skip_missing += 1; del self.files[idx]; continue
+                cnt_skip_missing += 1
+                del self.files[idx]
+                continue
             exts = [e.lower() for e in it.get("exts", [])] if it.get("exts") else None
             if exts and Path(src).suffix.lower() not in exts:
-                cnt_skip_ext += 1; continue
+                cnt_skip_ext += 1
+                continue
 
             YYYY, MM, YYYYMM = fmt_ym(y, m)
-            newname = it["rename"].format(
+            tpl = _expand_month_minus_one(it["rename"], y, m)
+            newname = tpl.format(
                 key=it["key"], YYYY=YYYY, MM=MM, YYYYMM=YYYYMM,
                 DD=f"{datetime.now().day:02d}",
-                orig="_"+safe_name(Path(src).stem), ext=Path(src).suffix
+                orig="_" + safe_name(Path(src).stem),
+                ext=Path(src).suffix
             )
             dst = target_dir(self.cfg, it, y, m) / newname
             final = move_with_conflict(Path(src), dst)
 
             entry = {"orig": str(src), "dst": str(dst), "current": str(final)}
-            self.undo_stack.append(entry); cnt_ok += 1
+            self.undo_stack.append(entry)
+            cnt_ok += 1
             del self.files[idx]
             logging.info(f"MOVED: {src} -> {final}")
 
-        if cnt_ok: self.redo_stack.clear()
+        if cnt_ok:
+            self.redo_stack.clear()
         self.refresh_files()
         self.refresh_status()
         msg = f"{it['key']}：分类成功 {cnt_ok} 个"
-        if cnt_skip_ext: msg += f"；扩展名不匹配跳过 {cnt_skip_ext} 个"
-        if cnt_skip_missing: msg += f"；源文件不存在移除 {cnt_skip_missing} 个"
+        if cnt_skip_ext:
+            msg += f"；扩展名不匹配跳过 {cnt_skip_ext} 个"
+        if cnt_skip_missing:
+            msg += f"；源文件不存在移除 {cnt_skip_missing} 个"
         self.set_status(msg)
 
     def open_dir_of_selected(self, event=None):
         sel = self.tree.selection()
-        if not sel: return
+        if not sel:
+            return
         iid = sel[0]
-        if self.tree.get_children(iid): return   # 组标题行
+        if self.tree.get_children(iid):  # 组标题行
+            return
         key = self.tree.item(iid, "text")        # 左列“文件类别”
         y, m = self.current_ym()
         it = next((x for x in self.cfg["items"] if x["key"] == key), None)
-        if not it: return
+        if not it:
+            return
         d = target_dir(self.cfg, it, y, m)
-        try: d.mkdir(parents=True, exist_ok=True); os.startfile(str(d))
-        except Exception as e: messagebox.showerror("打开失败", str(e))
+        try:
+            d.mkdir(parents=True, exist_ok=True)
+            os.startfile(str(d))
+        except Exception as e:
+            messagebox.showerror("打开失败", str(e))
 
+    # —— 新增：手动 ❎ 切换（不影响原有双击/按钮逻辑） —— #
+    def _on_status_click(self, event):
+        col = self.tree.identify_column(event.x)     # '#0' 树列；'#1' 第一数据列（status）
+        if col != "#1":
+            return
+        iid = self.tree.identify_row(event.y)
+        if not iid:
+            return
+        # 组标题（有子节点）不响应
+        if self.tree.get_children(iid):
+            return
+
+        key = self.tree.item(iid, "text")
+        y, m = self.current_ym()
+        ym = f"{y:04d}-{m:02d}"
+
+        # 自动为 ✅ 时不可手改
+        auto = compute_status(self.cfg, y, m).get(key, False)
+        if auto:
+            return
+
+        data = _load_na()
+        d = data.get(ym, {})
+        if d.get(key, False):
+            d.pop(key, None)       # ❎ -> 取消
+            if not d:
+                data.pop(ym, None)
+        else:
+            d[key] = True          # ⬜ -> ❎
+            data[ym] = d
+        _save_na(data)
+        self.refresh_status()
 
 # ---------- IPC：确保单窗口 & “发送到”只追加 ----------
 class _Handler(socketserver.BaseRequestHandler):
@@ -543,11 +655,13 @@ class _Server(socketserver.TCPServer):
 def start_ipc(app: App):
     try:
         srv = _Server((IPC_HOST, IPC_PORT), _Handler, app)
-        t = threading.Thread(target=srv.serve_forever, daemon=True); t.start(); return srv
+        t = threading.Thread(target=srv.serve_forever, daemon=True)
+        t.start()
+        return srv
     except OSError:
         return None
 
-def send_to_existing(files: list[str]) -> bool:
+def send_to_existing(files: List[str]) -> bool:
     import json as _json
     try:
         with socket.create_connection((IPC_HOST, IPC_PORT), timeout=0.8) as s:
@@ -555,7 +669,6 @@ def send_to_existing(files: list[str]) -> bool:
         return True
     except OSError:
         return False
-
 
 # ---------- 入口 ----------
 def main():
@@ -571,7 +684,9 @@ def main():
 
     def on_close():
         try:
-            if srv: srv.shutdown(); srv.server_close()
+            if srv:
+                srv.shutdown()
+                srv.server_close()
         except Exception:
             pass
         app.destroy()
